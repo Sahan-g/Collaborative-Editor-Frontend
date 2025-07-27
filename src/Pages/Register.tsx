@@ -38,17 +38,42 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8081/auth/register", {
+      // Register the user
+      const registerResponse = await fetch(
+        "http://localhost:8081/auth/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+
+      if (!registerResponse.ok) {
+        const data = await registerResponse.json();
+        setError(data.message || "Registration failed");
+        return;
+      }
+
+      // Auto-login after successful registration
+      const loginResponse = await fetch("http://localhost:8081/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.message || "Registration failed");
+
+      if (!loginResponse.ok) {
+        const data = await loginResponse.json();
+        setError(data.message || "Login failed after registration");
         return;
       }
-      navigate("/login");
+
+      const loginData = await loginResponse.json();
+
+      // Store the JWT token
+      localStorage.setItem("token", loginData.token);
+
+      // Redirect to home page
+      navigate("/");
     } catch {
       setError("Network error");
     }
@@ -69,9 +94,7 @@ const Register = () => {
               placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={
-                email.length > 0 ? (isValidEmail ? "valid" : "invalid") : ""
-              }
+              className={email.length > 0 && !isValidEmail ? "invalid" : ""}
               required
             />
             {email.length > 0 && !isValidEmail && (
@@ -86,11 +109,7 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={
-                password.length > 0
-                  ? isValidPassword
-                    ? "valid"
-                    : "invalid"
-                  : ""
+                password.length > 0 && !isValidPassword ? "invalid" : ""
               }
               required
             />
@@ -108,11 +127,7 @@ const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className={
-                confirmPassword.length > 0
-                  ? passwordsMatch
-                    ? "valid"
-                    : "invalid"
-                  : ""
+                confirmPassword.length > 0 && !passwordsMatch ? "invalid" : ""
               }
               required
             />

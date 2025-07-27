@@ -5,19 +5,24 @@ import Documents from "./Pages/Documents";
 import Shared from "./Pages/shared";
 import Recent from "./Pages/Recent";
 import Register from "./Pages/Register";
+import Login from "./Pages/Login";
+import Home from "./Pages/Home";
 
 function AppContent() {
   const location = useLocation();
-  const hideHeader = location.pathname === "/register";
+  const hideHeader =
+    location.pathname === "/register" || location.pathname === "/login";
 
   return (
     <>
       {!hideHeader && <Header />}
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/shared" element={<Shared />} />
         <Route path="/recent" element={<Recent />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </>
   );
