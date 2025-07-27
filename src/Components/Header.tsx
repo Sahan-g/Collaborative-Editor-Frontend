@@ -1,9 +1,17 @@
 import "./header.css";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 
 export default function Header() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
   return (
     <header className="border-b border-gray-300 shadow-sm bg-white">
       <div className="max-w-screen-lg mx-auto px-4 flex justify-between items-center py-4">
@@ -51,6 +59,13 @@ export default function Header() {
           </button>
           <button className="bg-purple-600 text-white px-4 py-1 rounded hover:bg-purple-700">
             <AddOutlinedIcon className="text-inherit" /> New Document
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1 border border-red-300 px-4 py-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors duration-200"
+          >
+            <LogoutOutlinedIcon className="text-inherit" fontSize="small" />
+            Logout
           </button>
           <div className="w-8 h-8 bg-gray-300 rounded-full text-center text-sm font-bold text-white flex items-center justify-center">
             JD
