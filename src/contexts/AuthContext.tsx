@@ -34,7 +34,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Verify token with backend
       verifyToken(storedToken);
     } else {
-      setIsLoading(false);
+      // Add a small delay to prevent flash of content
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 100);
     }
   }, []);
 
@@ -53,10 +56,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         // Token is invalid, remove it
         localStorage.removeItem("token");
+        setToken(null);
+        setUser(null);
       }
     } catch (error) {
       console.error("Token verification failed:", error);
       localStorage.removeItem("token");
+      setToken(null);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -66,12 +73,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.setItem("token", newToken);
     setToken(newToken);
     setUser(userData);
+    setIsLoading(false); // Ensure loading is false after login
   };
 
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
     setUser(null);
+    setIsLoading(false); // Ensure loading is false after logout
   };
 
   const value = {
