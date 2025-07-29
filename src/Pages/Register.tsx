@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 import "./Register.css";
 
 const Register = () => {
@@ -8,6 +9,7 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   // Email validation
   const isValidEmail = useMemo(() => {
@@ -69,8 +71,8 @@ const Register = () => {
 
       const loginData = await loginResponse.json();
 
-      // Store the JWT token
-      localStorage.setItem("token", loginData.token);
+      // Use the auth context login function
+      login(loginData.token, { email });
 
       // Redirect to home page
       navigate("/");

@@ -7,6 +7,8 @@ import Recent from "./Pages/Recent";
 import Register from "./Pages/Register";
 import Login from "./Pages/Login";
 import Home from "./Pages/Home";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 function AppContent() {
   const location = useLocation();
@@ -17,12 +19,43 @@ function AppContent() {
     <>
       {!hideHeader && <Header />}
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/shared" element={<Shared />} />
-        <Route path="/recent" element={<Recent />} />
-        <Route path="/register" element={<Register />} />
+        {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents"
+          element={
+            <ProtectedRoute>
+              <Documents />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/shared"
+          element={
+            <ProtectedRoute>
+              <Shared />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recent"
+          element={
+            <ProtectedRoute>
+              <Recent />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );
@@ -30,9 +63,11 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
