@@ -3,12 +3,14 @@ import { NavLink, useNavigate } from "react-router-dom";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Header() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    logout();
     navigate("/login");
   };
 
