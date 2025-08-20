@@ -9,6 +9,7 @@ import Login from "./Pages/Login";
 import Home from "./Pages/Home";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./Components/ProtectedRoute";
+import EditDoc from "./Pages/EditDoc";
 
 function AppContent() {
   const location = useLocation();
@@ -22,6 +23,7 @@ function AppContent() {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/document/:id" element={<EditDoc />} />
 
         {/* Protected routes */}
         <Route
