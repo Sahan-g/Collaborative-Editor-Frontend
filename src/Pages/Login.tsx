@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import "./Login.css";
+import api from "../api/api";
+import { isAxiosError } from "axios";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -34,27 +36,16 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8081/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.message || "Login failed");
-        return;
-      }
-
-      const loginData = await response.json();
-
-      // Use the auth context login function
-      login(loginData.token, { email });
-
-      // Redirect to home page
+      const res = await api.login({ email, password });
+      const { token } = res.data;
+      login(token, { email });
       navigate("/");
-    } catch {
-      setError("Incorrect email or password");
+    } catch (err) {
+      if (isAxiosError(err)) {
+        setError( "invalid email or password");
+      } else {
+        setError("Login failed");
+      }
     }
   };
 

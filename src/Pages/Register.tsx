@@ -2,12 +2,15 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import "./Register.css";
+import api from "../api/api";
+import { isAxiosError } from "axios";
 
 const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -34,50 +37,37 @@ const Register = () => {
     e.preventDefault();
     setError("");
 
-    if (!isFormValid) {
-      setError("Please check all fields");
-      return;
-    }
+    if (!isFormValid || submitting) return;
+    setSubmitting(true);
 
     try {
-      // Register the user
-      const registerResponse = await fetch(
-        "http://localhost:8081/auth/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const emailTrimmed = email.trim().toLowerCase();
+      
+      await api.register({ email: emailTrimmed, password });
 
-      if (!registerResponse.ok) {
-        const data = await registerResponse.json();
-        setError(data.message || "Registration failed");
-        return;
-      }
+      //  Auto-login after successful registration
+      const loginRes = await api.login({ email: emailTrimmed, password });
+      const { token } = loginRes.data;
 
-      // Auto-login after successful registration
-      const loginResponse = await fetch("http://localhost:8081/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      // Your auth context
+      login(token, { email: emailTrimmed });
 
-      if (!loginResponse.ok) {
-        const data = await loginResponse.json();
-        setError(data.message || "Login failed after registration");
-        return;
-      }
-
-      const loginData = await loginResponse.json();
-
-      // Use the auth context login function
-      login(loginData.token, { email });
-
-      // Redirect to home page
       navigate("/");
-    } catch {
-      setError("Network error");
+    } catch (err) {
+      if (isAxiosError(err)) {
+        const status = err.response?.status;
+
+        if (status === 409) {
+          setError(
+            "That email is already registered. Try signing in or use “Forgot password”."
+          );
+          return;
+        }
+      } else {
+        setError("Network error");
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
