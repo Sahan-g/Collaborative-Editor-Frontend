@@ -1,4 +1,3 @@
-import React from 'react'
 import { useParams } from "react-router-dom";
 
 const EditDoc = () => {
@@ -7,9 +6,6 @@ const EditDoc = () => {
     <>
     <div>EditDoc {id}</div>
     <textarea id="editor">Hello World!</textarea>
-    <script>
-      SUNEDITOR.create('editor');
-    </script>
     </>
 
     

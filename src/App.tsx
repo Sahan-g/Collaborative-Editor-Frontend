@@ -58,6 +58,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route path="/documents/:id" element={<EditDoc/>} />
       </Routes>
     </>
   );

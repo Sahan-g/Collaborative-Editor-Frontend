@@ -6,23 +6,38 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import GroupIcon from "@mui/icons-material/Group";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 
-interface DocumentCardProps {
+export interface DocumentCardProps {
+  id: string;
   title: string;
   time: string;
   collaborators: number;
   isFavorite?: boolean;
   isActive?: boolean;
+  onClick?: () => void;
+  onShare?: (id: string) => void; // <-- NEW
 }
 
 const DocumentCard: React.FC<DocumentCardProps> = ({
+  id,
   title,
   time,
   collaborators,
   isFavorite = false,
   isActive = false,
+  onClick,
+  onShare,
 }) => {
   return (
-    <div className="border border-gray-300 rounded-lg p-4 bg-white w-full max-w-sm shadow-sm hover:shadow-md transition">
+    <div
+      className="border border-gray-300 rounded-lg p-4 bg-white w-full max-w-sm shadow-sm hover:shadow-md transition"
+      onClick={onClick}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) onClick();
+      }}
+      role="button"
+      aria-label={`Open ${title}`}
+    >
       <div className="flex justify-between items-center mb-2">
         <div className="text-purple-600">
           <InsertDriveFileOutlinedIcon />
@@ -31,14 +46,24 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
           {isFavorite ? (
             <StarIcon fontSize="small" className="text-yellow-300" />
           ) : (
-            <StarIcon
-              fontSize="small"
-              className="text-gray-300 hover:text-yellow-200"
-            />
+            <StarIcon fontSize="small" className="text-gray-300 hover:text-yellow-200" />
           )}
-          {<ShareIcon fontSize="small" />}
+
+          {/* Share button – stops propagation so it won't trigger card onClick */}
+          <button
+            type="button"
+            className="p-1 rounded hover:bg-gray-100"
+            aria-label="Share"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare?.(id);
+            }}
+          >
+            <ShareIcon fontSize="small" />
+          </button>
         </div>
       </div>
+
       <h2 className="text-md font-semibold text-gray-900 mb-2">{title}</h2>
       <div className="flex items-center text-sm text-gray-500 mb-1">
         <AccessTimeIcon fontSize="small" className="mr-1" />
