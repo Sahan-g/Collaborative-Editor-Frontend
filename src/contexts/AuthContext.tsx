@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import { API_BASE_URL } from "../constants/services";
 
 interface User {
   email: string;
@@ -41,9 +42,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  // "http://localhost:8081/api/me"
   const verifyToken = async (token: string) => {
     try {
-      const response = await fetch("http://localhost:8081/api/me", {
+      const response = await fetch(`${API_BASE_URL}/api/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

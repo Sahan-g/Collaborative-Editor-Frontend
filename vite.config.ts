@@ -9,7 +9,7 @@ export default defineConfig({
     host: true, // allow access from network
     port: 5173,
     allowedHosts: [
-      'mv-cornwall-navigate-fcc.trycloudflare.com',
+      'include-rack-looksmart-convicted.trycloudflare.com',
       "*" // add your Cloudflare URL
     ],
   },
