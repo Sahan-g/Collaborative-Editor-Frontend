@@ -1,6 +1,5 @@
 import { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
-import { API_BASE_URL } from "../constants/services";
 
 interface User {
   email: string;
@@ -42,19 +41,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // "http://localhost:8081/api/me"
   const verifyToken = async (token: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/me`, {
+      // Try to get user's documents as a way to verify token
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/documents`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (response.ok) {
-        // For now, we'll use the email from response or create a simple user object
+        // If we can access documents, token is valid
+        // Extract email from JWT token (assuming JWT contains email in payload)
+        const payload = JSON.parse(atob(token.split('.')[1]));
         setToken(token);
-        setUser({ email: "user@example.com" }); // You can extract email from JWT or API response
+        setUser({ email: payload.email });
       } else {
         // Token is invalid, remove it
         localStorage.removeItem("token");

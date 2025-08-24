@@ -5,11 +5,6 @@ import api from "../api/api";
 import { makeWsUrl, useDocSocket } from "../hooks/useDocSocket";
 import { diffStrings, applyServerInsert, applyServerDelete, transformCaret } from "../utils/textOpts";
 
-const WS_BASE = "wss://organic-meme-xjrggqq9vj539v6p-8080.app.github.dev/ws/doc";
-
-export function makeWsUrlnew(docId: string, token: string) {
-  return `${WS_BASE}/${encodeURIComponent(docId)}?token=${encodeURIComponent(token)}`;
-}
 const EditDoc: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { state } = useLocation() as { state?: { title?: string } };
@@ -47,7 +42,7 @@ const EditDoc: React.FC = () => {
   }, [id]);
 
   // 2) WebSocket connection
-  const wsUrl = makeWsUrlnew(id || "", token);
+  const wsUrl = makeWsUrl(window.location.origin, id || "", token);
   const { status, send } = useDocSocket({
     wsUrl,
     onReady: () => {
