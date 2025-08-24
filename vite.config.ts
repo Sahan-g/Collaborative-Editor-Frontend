@@ -9,9 +9,8 @@ export default defineConfig({
     host: true, // allow access from network
     port: 5173,
     allowedHosts: [
-      'include-rack-looksmart-convicted.trycloudflare.com',
+      'growing-bugs-thunder-spoken.trycloudflare.com',
       "*" // add your Cloudflare URL
     ],
   },
-
 })

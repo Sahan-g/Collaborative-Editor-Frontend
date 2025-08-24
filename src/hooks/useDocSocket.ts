@@ -1,5 +1,5 @@
+// src/hooks/useDocSocket.ts
 import { useEffect, useRef, useState } from "react";
-const API_BASE = 'ominous-barnacle-5wv77pp4765f76xw-8080.app.github.dev'
 
 export type ClientInsert = { type: "insert"; pos: number; text: string; version: number };
 export type ClientDelete = { type: "delete"; pos: number; len: number; version: number };
@@ -15,11 +15,14 @@ export type InitialStateMsg = { type: "initial_state" };
 export type ErrorMsg = { type: "error"; message: string; code: "UNAUTHORIZED" | "FORBIDDEN" | "CONFLICT"; current_version?: number };
 export type ServerMsg = ServerOp | InitialStateMsg | ErrorMsg;
 
-
-const WS_BASE = "wss://ominous-barnacle-5wv77pp4765f76xw-8080.app.github.dev/ws/doc";
-
-export function makeWsUrl(docId: string, token: string) {
-  return `${WS_BASE}/${encodeURIComponent(docId)}?token=${encodeURIComponent(token)}`;
+export function makeWsUrl(apiBase: string, docId: string, token: string) {
+  const u = new URL(apiBase);
+  u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
+  // Force the WS path regardless of base path
+  u.pathname = `/ws/doc/${docId}`;
+  u.search = `token=${encodeURIComponent(token)}`;
+  console.log("WebSocket URL:", u.toString());
+  return u.toString();
 }
 
 type UseDocSocketOpts = {
@@ -34,6 +37,7 @@ export function useDocSocket({ wsUrl, onServerOperation, onError, onReady }: Use
   const [status, setStatus] = useState<"connecting" | "open" | "closed">("connecting");
 
   useEffect(() => {
+    console.log("WebSocket URL:", status);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     setStatus("connecting");
@@ -65,7 +69,6 @@ export function useDocSocket({ wsUrl, onServerOperation, onError, onReady }: Use
     };
 
     return () => {
-      console.log(wsUrl.toString(), "hehe")
       try { ws.close(1000, "leave"); } catch {}
       wsRef.current = null;
       setStatus("closed");
@@ -81,5 +84,3 @@ export function useDocSocket({ wsUrl, onServerOperation, onError, onReady }: Use
 
   return { status, send };
 }
-
-

@@ -1,14 +1,15 @@
-// src/pages/EditDoc.tsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { isAxiosError } from "axios";
-import api from "../api/api"; // must expose getDocument(id)
-import type { DocumentCreateResponse } from "../types/document";
+import api from "../api/api";
 import { makeWsUrl, useDocSocket } from "../hooks/useDocSocket";
 import { diffStrings, applyServerInsert, applyServerDelete, transformCaret } from "../utils/textOpts";
 
+const WS_BASE = "wss://organic-meme-xjrggqq9vj539v6p-8080.app.github.dev/ws/doc";
 
-
+export function makeWsUrlnew(docId: string, token: string) {
+  return `${WS_BASE}/${encodeURIComponent(docId)}?token=${encodeURIComponent(token)}`;
+}
 const EditDoc: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { state } = useLocation() as { state?: { title?: string } };
@@ -46,10 +47,7 @@ const EditDoc: React.FC = () => {
   }, [id]);
 
   // 2) WebSocket connection
-  console.log(id)
-  console.log(token)
-  const wsUrl = id && token ? makeWsUrl (id, token) : "";
-  console.log(wsUrl)
+  const wsUrl = makeWsUrlnew(id || "", token);
   const { status, send } = useDocSocket({
     wsUrl,
     onReady: () => {
@@ -139,7 +137,7 @@ const EditDoc: React.FC = () => {
       return;
     }
 
-  
+    // For replace (mix), you can do two ops; here we fallback to setContent
     setContent(newVal);
   };
 
