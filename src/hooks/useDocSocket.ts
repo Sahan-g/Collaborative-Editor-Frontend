@@ -15,14 +15,14 @@ export type InitialStateMsg = { type: "initial_state" };
 export type ErrorMsg = { type: "error"; message: string; code: "UNAUTHORIZED" | "FORBIDDEN" | "CONFLICT"; current_version?: number };
 export type ServerMsg = ServerOp | InitialStateMsg | ErrorMsg;
 
-export function makeWsUrl(apiBase: string, docId: string, token: string) {
-  const u = new URL(apiBase);
-  u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-  // Force the WS path regardless of base path
-  u.pathname = `/ws/doc/${docId}`;
-  u.search = `token=${encodeURIComponent(token)}`;
-  console.log("WebSocket URL:", u.toString());
-  return u.toString();
+const BACKEND_URL = "https://cautious-dollop-rwwq5vgpxx6369g-8080.app.github.dev";
+const BACKEND_WS_URL = BACKEND_URL.replace('https://', 'wss://');
+const CONNECTION_TIMEOUT = 5000;
+const MAX_RETRIES = 3;
+
+export function makeWsUrl(_: string, docId: string, token: string) {
+  const wsUrl = `${BACKEND_WS_URL}/ws/doc/${docId}?token=${encodeURIComponent(token)}`;
+  return wsUrl;
 }
 
 type UseDocSocketOpts = {
@@ -35,51 +35,132 @@ type UseDocSocketOpts = {
 export function useDocSocket({ wsUrl, onServerOperation, onError, onReady }: UseDocSocketOpts) {
   const wsRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<"connecting" | "open" | "closed">("connecting");
+  const timeoutsRef = useRef<number[]>([]);
+  const retryCountRef = useRef(0);
+  const isConnectingRef = useRef(false);
 
-  useEffect(() => {
-    console.log("WebSocket URL:", status);
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+  const clearTimeouts = () => {
+    timeoutsRef.current.forEach(timeoutId => window.clearTimeout(timeoutId));
+    timeoutsRef.current = [];
+  };
+
+  const cleanup = () => {
+    clearTimeouts();
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    isConnectingRef.current = false;
+  };
+
+  const setupWebSocket = () => {
+    if (isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    cleanup();
+    isConnectingRef.current = true;
     setStatus("connecting");
 
-    ws.onopen = () => setStatus("open");
-    ws.onclose = () => setStatus("closed");
-    ws.onerror = () => {
-      setStatus("closed");
-      onError?.({ type: "error", code: "FORBIDDEN", message: "WebSocket error" });
-    };
-    ws.onmessage = (evt) => {
-      try {
-        const msg: ServerMsg = JSON.parse(evt.data);
-        if (msg.type === "initial_state") {
-          onReady?.();
-          return;
-        }
-        if (msg.type === "operation") {
-          onServerOperation(msg.op);
-          return;
-        }
-        if (msg.type === "error") {
-          onError?.(msg);
-          return;
-        }
-      } catch (e) {
-        // ignore malformed
-      }
-    };
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-    return () => {
-      try { ws.close(1000, "leave"); } catch {}
-      wsRef.current = null;
+      // Set connection timeout
+      const connectionTimeout = window.setTimeout(() => {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+      }, CONNECTION_TIMEOUT);
+      timeoutsRef.current.push(connectionTimeout);
+
+      ws.onopen = () => {
+        clearTimeouts();
+        isConnectingRef.current = false;
+        retryCountRef.current = 0;
+        setStatus("open");
+        onReady?.();
+      };
+
+      ws.onclose = (event) => {
+        clearTimeouts();
+        isConnectingRef.current = false;
+        wsRef.current = null;
+
+        if (event.wasClean) {
+          setStatus("closed");
+          return;
+        }
+
+        if (retryCountRef.current < MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
+          retryCountRef.current++;
+
+          const retryTimeout = window.setTimeout(() => {
+            setupWebSocket();
+          }, delay);
+          timeoutsRef.current.push(retryTimeout);
+        } else {
+          setStatus("closed");
+          onError?.({
+            type: "error",
+            code: "FORBIDDEN",
+            message: `Connection failed after ${MAX_RETRIES} attempts`
+          });
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg: ServerMsg = JSON.parse(evt.data);
+          switch (msg.type) {
+            case "initial_state":
+              onReady?.();
+              break;
+            case "operation":
+              onServerOperation(msg.op);
+              break;
+            case "error":
+              onError?.(msg);
+              break;
+          }
+        } catch (e) {
+          console.error("Error parsing WebSocket message:", e);
+        }
+      };
+    } catch (error) {
+      console.error("Error creating WebSocket:", error);
+      isConnectingRef.current = false;
       setStatus("closed");
-    };
+      onError?.({
+        type: "error",
+        code: "FORBIDDEN",
+        message: "Failed to create WebSocket connection"
+      });
+    }
+  };
+
+  useEffect(() => {
+    setupWebSocket();
+    return cleanup;
   }, [wsUrl]);
 
-  const send = (msg: ClientMsg) => {
+  const send = (msg: ClientMsg): boolean => {
     const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-    ws.send(JSON.stringify(msg));
-    return true;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    try {
+      ws.send(JSON.stringify(msg));
+      return true;
+    } catch (e) {
+      console.error("Error sending message:", e);
+      return false;
+    }
   };
 
   return { status, send };
