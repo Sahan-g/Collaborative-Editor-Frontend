@@ -1,186 +1,177 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
-import { isAxiosError } from "axios";
-import api from "../api/api";
-import { makeWsUrl, useDocSocket } from "../hooks/useDocSocket";
-import { diffStrings, applyServerInsert, applyServerDelete, transformCaret } from "../utils/textOpts";
+import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { getOperations } from '../utils/textOpts';
+import './EditDoc.css';
+import api from '../api/api';
+import  type { DocumentCreateResponse } from '../types/document';
 
 const EditDoc: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const { state } = useLocation() as { state?: { title?: string } };
-  const token = localStorage.getItem("token") || "";
+    const { id: documentId } = useParams<{ id: string }>();
+    const { token } = useAuth();
+    const [doc, setDoc] = useState<DocumentCreateResponse | null>(null);
+    const [content, setContent] = useState('');
+    const [version, setVersion] = useState(0);
+    const ws = useRef<WebSocket | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const cursorRef = useRef<{ start: number, end: number } | null>(null);
+    const applyingRemoteOp = useRef(false);
+    const socketProvidedContent = useRef(false);
 
-  const [title, setTitle] = useState(state?.title || "Untitled");
-  const [content, setContent] = useState("");
-  const [version, setVersion] = useState(0);
-  const [error, setError] = useState<string>("");
+    useEffect(() => {
+        if (!documentId) return;
 
-  // Track caret for better UX on remote ops
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const caretRef = useRef<number>(0);
+        const fetchDoc = async () => {
+            try {
+                const document  = await api.getDocumentById(documentId);
+                setDoc(document.data);
+                console.log('Fetched document:', document.data);
+                if (!socketProvidedContent.current) {
+                    setContent(document.data.Content);
+                    setVersion(document.data.Version);
+                }
+            } catch (error) {
+                console.error('Failed to fetch document', error);
+            }
+        };
 
-  // Pending ops we originated (to ignore our own echo)
-  const pendingRef = useRef<Array<{ type: "insert" | "delete"; pos: number; text?: string; len?: number }>>([]);
+        fetchDoc();
+    }, [documentId]);
 
-  // 1) Load initial doc via HTTP
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!id) return;
-      try {
-        const { data } = await api.getDocumentById(id);
-        if (!mounted) return;
-        setTitle(data.Title || "Untitled");
-        setContent(data.Content || "");
-        setVersion(data.Version || 0);
-      } catch (err) {
-        const msg = isAxiosError(err) ? (err.response?.data as any)?.message || err.message : "Failed to load document";
-        setError(msg);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [id]);
+    useEffect(() => {
+        if (!token || !documentId) return;
 
-  // 2) WebSocket connection
-  const wsUrl = makeWsUrl(window.location.origin, id || "", token);
-  const { status, send } = useDocSocket({
-    wsUrl,
-    onReady: () => {
-      // connected; nothing else to do since we loaded content via HTTP
-    },
-    onError: (err) => {
-      if (err.code === "CONFLICT" && err.current_version !== undefined && id) {
-        // re-sync on conflict
-        api.getDocumentById(id).then(({ data }) => {
-          setContent(data.Content || "");
-          setVersion(data.Version || 0);
-          pendingRef.current = [];
-        });
-      } else {
-        setError(err.message);
-      }
-    },
-    onServerOperation: (op) => {
-      // If it matches our own pending op, drop it (we already applied)
-      const head = pendingRef.current[0];
-      const same =
-        head &&
-        head.type === op.type &&
-        head.pos === op.pos &&
-        ((op.type === "insert" && head.text === op.text) ||
-          (op.type === "delete" && head.len === op.len));
+        const socketUrl = `wss://organic-meme-xjrggqq9vj539v6p-8080.app.github.dev/ws/doc/${documentId}?token=${token}`;
+        const socket = new WebSocket(socketUrl);
+        ws.current = socket;
 
-      if (same) {
-        pendingRef.current.shift();
-        setVersion(op.version);
-        return;
-      }
+        socket.onopen = () => {
+            console.log('WebSocket connected');
+        };
 
-      // Apply remote op
-      setContent((prev) => {
-        let next = prev;
-        let newCaret = textareaRef.current ? textareaRef.current.selectionStart : 0;
+        socket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            
+            switch (message.type) {
+                case 'initial_state':
+                    console.log('Received initial state.' , message);
+                    if (message.content != null) {
+                        setContent(message.content);
+                        setVersion(message.version);  
+                        socketProvidedContent.current = true;
+                    }
+                    break;
+                case 'operation':
+                    console.log('Received operation:', message.op);
+                    applyingRemoteOp.current = true;
+                    applyOperation(message.op);
+                    break;
+                case 'error':
+                    console.error('WebSocket error message:', message);
+                    if (message.code === 'CONFLICT') {
+                        setVersion(message.current_version);
+                    }
+                    break;
+                case 'out_of_sync':
+                    console.warn('Client out of sync. Server version:', message.current_version);
+                    setVersion(message.version);
+                    setContent(message.content);
+                    break;
+                default:
+                    console.warn('Unknown message type:', message.type);
+            }
+        };
 
-        if (op.type === "insert" && typeof op.text === "string") {
-          next = applyServerInsert(next, op.pos, op.text);
-          newCaret = transformCaret(newCaret, { type: "insert", pos: op.pos, text: op.text });
-        } else if (op.type === "delete" && typeof op.len === "number") {
-          next = applyServerDelete(next, op.pos, op.len);
-          newCaret = transformCaret(newCaret, { type: "delete", pos: op.pos, len: op.len });
+        socket.onclose = () => {
+            console.log('WebSocket disconnected');
+        };
+
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        return () => {
+            socket.close();
+        };
+    }, [token, documentId]);
+
+    const applyOperation = (op: any) => {
+        if (textareaRef.current) {
+            const { selectionStart, selectionEnd } = textareaRef.current;
+            let newCursorPos = selectionStart;
+
+            if (op.type === 'insert') {
+                if (op.pos < selectionStart) {
+                    newCursorPos += op.text.length;
+                }
+            } else if (op.type === 'delete') {
+                if (op.pos < selectionStart) {
+                    newCursorPos -= Math.min(op.len, selectionStart - op.pos);
+                }
+            }
+            cursorRef.current = { start: newCursorPos, end: newCursorPos };
         }
-
-        // restore caret
-        requestAnimationFrame(() => {
-          if (textareaRef.current) {
-            textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newCaret;
-          }
+        
+        setContent(currentContent => {
+            if (op.type === 'insert') {
+                return currentContent.slice(0, op.pos) + op.text + currentContent.slice(op.pos);
+            } else if (op.type === 'delete') {
+                return currentContent.slice(0, op.pos) + currentContent.slice(op.pos + op.len);
+            }
+            return currentContent;
         });
+        setVersion(op.version);
+    };
 
-        return next;
-      });
+    useLayoutEffect(() => {
+        if (textareaRef.current && cursorRef.current) {
+            textareaRef.current.selectionStart = cursorRef.current.start;
+            textareaRef.current.selectionEnd = cursorRef.current.end;
+            cursorRef.current = null;
+        }
+        if(applyingRemoteOp.current){
+            applyingRemoteOp.current = false;
+        }
+    }, [content]);
 
-      setVersion(op.version);
-    },
-  });
+    const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        if(applyingRemoteOp.current) return;
 
-  // 3) Local edits -> compute diff -> send op (and optimistically apply)
-  const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newVal = e.target.value;
-    const oldVal = content;
-    const diff = diffStrings(oldVal, newVal);
+        const newContent = e.target.value;
+        const oldContent = content;
 
-    if (diff.kind === "noop") {
-      setContent(newVal);
-      return;
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            const ops = getOperations(oldContent, newContent, version);
+            ops.forEach(op => {
+                console.log('Sending op:', op);
+                ws.current?.send(JSON.stringify(op));
+                setVersion(v => v + 1);
+            });
+        }
+        
+        setContent(newContent);
+    };
+
+    if (!doc) {
+        return <div className="loading-container">Loading document...</div>;
     }
 
-    if (diff.kind === "insert") {
-      // Optimistically accept local input; enqueue pending op
-      setContent(newVal);
-      pendingRef.current.push({ type: "insert", pos: diff.pos, text: diff.text });
-
-      send({ type: "insert", pos: diff.pos, text: diff.text, version });
-      // Do not bump version locally; wait for server op
-      return;
-    }
-
-    if (diff.kind === "delete") {
-      setContent(newVal);
-      pendingRef.current.push({ type: "delete", pos: diff.pos, len: diff.len });
-
-      send({ type: "delete", pos: diff.pos, len: diff.len, version });
-      return;
-    }
-
-    // For replace (mix), you can do two ops; here we fallback to setContent
-    setContent(newVal);
-  };
-
-  const onSelect = () => {
-    const el = textareaRef.current;
-    if (el) caretRef.current = el.selectionStart;
-  };
-
-  const sendUndo = () => {
-    send({ type: "undo" });
-  };
-
-  if (!id) return <div className="p-6">Invalid document ID.</div>;
-
-  return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-          <div className="text-xs text-gray-500">
-            Doc ID: <span className="font-mono">{id}</span> • Version {version} • WS {status}
-          </div>
+    return (
+        <div className="edit-doc-container">
+            <h1 className="doc-title">{doc.Title}</h1>
+            <div className="editor-wrapper">
+                <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={handleContentChange}
+                    className="editor-textarea"
+                />
+            </div>
+            <div className="doc-info">
+                <p>Version: {version}</p>
+            </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
-            onClick={sendUndo}
-            disabled={status !== "open"}
-          >
-            Undo
-          </button>
-        </div>
-      </div>
-
-      {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
-
-      <textarea
-        ref={textareaRef}
-        id="editor"
-        className="mt-2 w-full min-h-[320px] rounded-md border p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        value={content}
-        onChange={onChange}
-        onSelect={onSelect}
-        placeholder="Start typing…"
-        disabled={status === "closed"}
-      />
-    </div>
-  );
+    );
 };
 
 export default EditDoc;

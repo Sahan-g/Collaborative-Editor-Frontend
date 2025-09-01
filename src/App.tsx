@@ -23,7 +23,7 @@ function AppContent() {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/document/:id" element={<EditDoc />} />
+        {/* <Route path="/document/:id" element={<EditDoc />} /> */}
 
         {/* Protected routes */}
         <Route
@@ -58,7 +58,10 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-        <Route path="/documents/:id" element={<EditDoc/>} />
+        <Route path="/documents/:id" element={<ProtectedRoute>
+          <EditDoc />
+        </ProtectedRoute>
+        } />
       </Routes>
     </>
   );
