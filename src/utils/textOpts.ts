@@ -4,6 +4,7 @@ export function getOperations(oldStr: string, newStr: string, version: number) {
     }
 
     const ops: any[] = [];
+    let currentVersion = version;
 
     let start = 0;
     while (start < oldStr.length && start < newStr.length && oldStr[start] === newStr[start]) {
@@ -22,8 +23,9 @@ export function getOperations(oldStr: string, newStr: string, version: number) {
             type: 'delete',
             pos: start,
             len: oldEnd - start,
-            version: version,
+            version: currentVersion,
         });
+        currentVersion++;
     }
 
     if (newEnd > start) {
@@ -31,7 +33,7 @@ export function getOperations(oldStr: string, newStr: string, version: number) {
             type: 'insert',
             pos: start,
             text: newStr.substring(start, newEnd),
-            version: version,
+            version: currentVersion,
         });
     }
 
