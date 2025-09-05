@@ -1,14 +1,15 @@
 import "./header.css";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
-import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import { useAuth } from "../hooks/useAuth";
+import { useShareModal } from "../contexts/modalContext";
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
+  const { openShare } = useShareModal();
 
   const handleLogout = () => {
     logout();
@@ -19,6 +20,16 @@ export default function Header() {
   const showShare =
     /^\/documents\/[^/]+$/.test(location.pathname) ||
     location.pathname.includes("editdoc");
+
+  // Extract document id from /documents/:id
+  const docIdMatch = location.pathname.match(/^\/documents\/([^/]+)$/);
+  const currentDocId = docIdMatch?.[1];
+
+  const handleOpenShare = () => {
+    if (!currentDocId) return;
+    // Title is optional here; ShareModal will fetch it if not provided
+    openShare({ id: currentDocId });
+  };
 
   return (
     <header className="border-b border-gray-300 shadow-sm bg-white">
@@ -62,7 +73,12 @@ export default function Header() {
         </div>
         <div className="flex gap-4 items-center">
           {showShare && (
-            <button className="hidden md:flex items-center gap-1 border border-gray-300 px-4 py-1 rounded hover:bg-gray-300 text-gray-700 hover:text-purple-600 transition-colors duration-200">
+            <button
+              onClick={handleOpenShare}
+              disabled={!currentDocId}
+              className="hidden md:flex items-center gap-1 border border-gray-300 px-4 py-1 rounded hover:bg-gray-300 text-gray-700 hover:text-purple-600 transition-colors duration-200 disabled:opacity-50"
+              title={currentDocId ? "Share this document" : "No document selected"}
+            >
               <ShareOutlinedIcon className="text-inherit" />
               Share
             </button>
