@@ -1,5 +1,5 @@
 import "./header.css";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
@@ -7,12 +7,18 @@ import { useAuth } from "../hooks/useAuth";
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  // Show Share button only on /documents/:id or EditDoc page
+  const showShare =
+    /^\/documents\/[^/]+$/.test(location.pathname) ||
+    location.pathname.includes("editdoc");
 
   return (
     <header className="border-b border-gray-300 shadow-sm bg-white">
@@ -55,13 +61,12 @@ export default function Header() {
           </nav>
         </div>
         <div className="flex gap-4 items-center">
-          <button className="hidden md:flex items-center gap-1 border border-gray-300 px-4 py-1 rounded hover:bg-gray-300 text-gray-700 hover:text-purple-600 transition-colors duration-200">
-            <ShareOutlinedIcon className="text-inherit" />
-            Share
-          </button>
-          <button className="bg-purple-600 text-white px-4 py-1 rounded hover:bg-purple-700">
-            <AddOutlinedIcon className="text-inherit" /> New Document
-          </button>
+          {showShare && (
+            <button className="hidden md:flex items-center gap-1 border border-gray-300 px-4 py-1 rounded hover:bg-gray-300 text-gray-700 hover:text-purple-600 transition-colors duration-200">
+              <ShareOutlinedIcon className="text-inherit" />
+              Share
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="flex items-center gap-1 border border-red-300 px-4 py-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors duration-200"
