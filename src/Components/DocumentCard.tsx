@@ -1,4 +1,5 @@
 import React from "react";
+import clsx from "clsx";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import ShareIcon from "@mui/icons-material/Share";
@@ -14,7 +15,8 @@ export interface DocumentCardProps {
   isFavorite?: boolean;
   isActive?: boolean;
   onClick?: () => void;
-  onShare?: (id: string) => void; // <-- NEW
+  onShare?: (id: string) => void;
+  className?: string; // ✅ allow external styles
 }
 
 const DocumentCard: React.FC<DocumentCardProps> = ({
@@ -26,10 +28,19 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
   isActive = false,
   onClick,
   onShare,
+  className,
 }) => {
+  const containerClass = clsx(
+    // fill grid cell nicely
+    "w-full h-full",
+    // visuals
+    "border border-gray-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition",
+    className
+  );
+
   return (
     <div
-      className="border border-gray-300 rounded-lg p-4 bg-white w-full max-w-sm shadow-sm hover:shadow-md transition"
+      className={containerClass}
       onClick={onClick}
       tabIndex={0}
       onKeyDown={(e) => {
@@ -42,14 +53,15 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
         <div className="text-purple-600">
           <InsertDriveFileOutlinedIcon />
         </div>
-        <div className="flex gap-2 text-gray-400">
+
+        <div className="flex gap-1.5 text-gray-400">
           {isFavorite ? (
             <StarIcon fontSize="small" className="text-yellow-300" />
           ) : (
-            <StarIcon fontSize="small" className="text-gray-300 hover:text-yellow-200" />
+            <StarIcon fontSize="small" className="text-gray-300" />
           )}
 
-          {/* Share button – stops propagation so it won't trigger card onClick */}
+          {/* Share button – stop propagation so card onClick doesn’t fire */}
           <button
             type="button"
             className="p-1 rounded hover:bg-gray-100"
@@ -65,11 +77,13 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
       </div>
 
       <h2 className="text-md font-semibold text-gray-900 mb-2">{title}</h2>
+
       <div className="flex items-center text-sm text-gray-500 mb-1">
         <AccessTimeIcon fontSize="small" className="mr-1" />
         <span>{time}</span>
       </div>
-      <div className="flex justify-between items-center text-sm text-gray-500 mb-3">
+
+      <div className="flex justify-between items-center text-sm text-gray-500">
         <div className="flex items-center">
           <GroupIcon fontSize="small" className="mr-1" />
           <span>
@@ -78,9 +92,9 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
         </div>
 
         {isActive && (
-          <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-gray-700 bg-gray-100">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-gray-700 bg-gray-100">
             <EditNoteIcon fontSize="small" /> Active
-          </div>
+          </span>
         )}
       </div>
     </div>
