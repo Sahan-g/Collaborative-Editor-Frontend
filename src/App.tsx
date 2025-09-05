@@ -10,6 +10,7 @@ import Home from "./Pages/Home";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./Components/ProtectedRoute";
 import EditDoc from "./Pages/EditDoc";
+import { ShareModalProvider } from "./contexts/modalContext";
 
 function AppContent() {
   const location = useLocation();
@@ -71,7 +72,9 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppContent />
+        <ShareModalProvider>
+          <AppContent />
+        </ShareModalProvider>
       </BrowserRouter>
     </AuthProvider>
   );
