@@ -101,6 +101,11 @@ Run Collaborative-Editor-Frontend using the following command:
 ❯ npm start
 ```
 
+OR 
+```sh
+❯ npm run dev
+```
+
 
 **Using `docker`** &nbsp; [<img align="center" src="https://img.shields.io/badge/Docker-2CA5E0.svg?style={badge_style}&logo=docker&logoColor=white" />](https://www.docker.com/)
 
